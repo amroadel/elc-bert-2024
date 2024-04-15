@@ -25,9 +25,9 @@ from pre_training.dataset import Dataset
 import numpy as np
 
 
-if int(os.environ["SLURM_PROCID"]) == 0:
-    import wandb
-
+# if int(os.environ["SLURM_PROCID"]) == 0:
+#     import wandb
+import wandb
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
@@ -35,7 +35,7 @@ def parse_arguments():
     parser.add_argument("--input_path", default="../data/processed/cached_{sequence_length}.txt", type=str, help="The input data dir. Should contain .hdf5 files for the task.")
     parser.add_argument("--config_file", default="../configs/base.json", type=str, help="The BERT model config")
     parser.add_argument("--output_dir", default="../checkpoints/elc_bert_base", type=str, help="The output directory where the model checkpoints will be written.")
-    parser.add_argument("--vocab_path", default="../tokenizer.json", type=str, help="The vocabulary the BERT model will train on.")
+    parser.add_argument("--vocab_path", default="../tokenizers/tokenizer.json", type=str, help="The vocabulary the BERT model will train on.")
     parser.add_argument("--checkpoint_path", default=None, type=str, help="Path to a previous checkpointed training state.")
 
     # Other parameters
@@ -93,53 +93,96 @@ def log_parameter_histograms(model, step):
             )
 
 
+# def setup_training(args):
+#     assert torch.cuda.is_available()
+#     args.n_gpu = torch.cuda.device_count()
+
+#     # world_size = int(os.environ["WORLD_SIZE"])
+#     world_size = 1
+#     # rank = int(os.environ["SLURM_PROCID"])
+#     rank = 0
+#     # gpus_per_node = int(os.environ["SLURM_GPUS_ON_NODE"])
+#     gpus_per_node = 1
+#     assert gpus_per_node == torch.cuda.device_count()
+#     print(f"Hello from rank {rank} of {world_size} on {gethostname()} where there are" \
+#           f" {gpus_per_node} allocated GPUs per node.", flush=True)
+
+#     seed_everything(args.seed + rank)
+
+#     torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
+#     if rank == 0:
+#         print(f"Group initialized? {torch.distributed.is_initialized()}", flush=True)
+
+#     local_rank = rank - gpus_per_node * (rank // gpus_per_node)
+#     torch.cuda.set_device(local_rank)
+#     device = torch.device("cuda", local_rank)
+#     print(f"RCCL started on device {device}", flush=True)
+#     print(f"host: {gethostname()}, rank: {rank}, local_rank: {local_rank}")
+
+#     if is_main_process():
+#         os.system(f"mkdir -p {args.output_dir}")
+
+#     if is_main_process():
+#         print(f"Training for {args.max_steps:,} steps with {get_world_size()} GPUs")
+#         print(f"In total, the model will be trained on 'steps'({args.max_steps:,}) x 'GPUs'({get_world_size()}) x 'batch_size'({args.batch_size:,}) x 'seq_len'({args.seq_length:,}) = {args.max_steps * get_world_size() * args.batch_size * args.seq_length:,} subword instances")
+
+#     args.device_max_steps = args.max_steps
+
+#     if is_main_process():
+#         wandb.init(
+#             name=args.wandb_name,
+#             config=args,
+#             id=args.wandb_id,
+#             project=args.wandb_project,
+#             entity=args.wandb_entity,
+#             resume="auto",
+#             allow_val_change=True,
+#             reinit=True
+#         )
+
+#     return device, local_rank
+
 def setup_training(args):
     assert torch.cuda.is_available()
     args.n_gpu = torch.cuda.device_count()
 
-    world_size = int(os.environ["WORLD_SIZE"])
-    rank = int(os.environ["SLURM_PROCID"])
-    gpus_per_node = int(os.environ["SLURM_GPUS_ON_NODE"])
-    assert gpus_per_node == torch.cuda.device_count()
+    # Set rank and world size for non-distributed training
+    rank = 0
+    world_size = 1
+    gpus_per_node = torch.cuda.device_count()
+    
+    assert gpus_per_node == args.n_gpu
     print(f"Hello from rank {rank} of {world_size} on {gethostname()} where there are" \
           f" {gpus_per_node} allocated GPUs per node.", flush=True)
 
-    seed_everything(args.seed + rank)
+    # Seed for reproducibility
+    seed_everything(args.seed)
 
-    torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
-    if rank == 0:
-        print(f"Group initialized? {torch.distributed.is_initialized()}", flush=True)
+    # Set the CUDA device
+    torch.cuda.set_device(rank)
+    device = torch.device("cuda", rank)
+    print(f"Training on device {device}", flush=True)
+    print(f"host: {gethostname()}, rank: {rank}")
 
-    local_rank = rank - gpus_per_node * (rank // gpus_per_node)
-    torch.cuda.set_device(local_rank)
-    device = torch.device("cuda", local_rank)
-    print(f"RCCL started on device {device}", flush=True)
-    print(f"host: {gethostname()}, rank: {rank}, local_rank: {local_rank}")
+    # Create output directory if it doesn't exist
+    os.makedirs(args.output_dir, exist_ok=True)
 
-    if is_main_process():
-        os.system(f"mkdir -p {args.output_dir}")
+    print(f"Training for {args.max_steps:,} steps with {world_size} GPUs")
+    print(f"In total, the model will be trained on 'steps'({args.max_steps:,}) x 'GPUs'({world_size}) x 'batch_size'({args.batch_size:,}) x 'seq_len'({args.seq_length:,}) = {args.max_steps * world_size * args.batch_size * args.seq_length:,} subword instances")
 
-    if is_main_process():
-        print(f"Training for {args.max_steps:,} steps with {get_world_size()} GPUs")
-        print(f"In total, the model will be trained on 'steps'({args.max_steps:,}) x 'GPUs'({get_world_size()}) x 'batch_size'({args.batch_size:,}) x 'seq_len'({args.seq_length:,}) = {args.max_steps * get_world_size() * args.batch_size * args.seq_length:,} subword instances")
+    # Initialize WandB
+    wandb.init(
+        name=args.wandb_name,
+        config=args,
+        id=args.wandb_id,
+        project=args.wandb_project,
+        entity=args.wandb_entity,
+        resume="auto",
+        allow_val_change=True,
+        reinit=True
+    )
 
-    args.device_max_steps = args.max_steps
-
-    if is_main_process():
-        wandb.init(
-            name=args.wandb_name,
-            config=args,
-            id=args.wandb_id,
-            project=args.wandb_project,
-            entity=args.wandb_entity,
-            resume="auto",
-            allow_val_change=True,
-            reinit=True
-        )
-
-    return device, local_rank
-
-
+    return device, rank
 def prepare_model_and_optimizer(args, device, local_rank, checkpoint):
     config = BertConfig(args.config_file)
     model = Bert(config, args.activation_checkpointing)
@@ -358,7 +401,8 @@ if __name__ == "__main__":
         args = argparse.Namespace(**args)
     else:
         checkpoint, initial_epoch, global_step = None, 0, 0
-        args.wandb_id = wandb.util.generate_id() if int(os.environ["SLURM_PROCID"]) == 0 else 0
+        # args.wandb_id = wandb.util.generate_id() if int(os.environ["SLURM_PROCID"]) == 0 else 0
+        args.wandb_id = 0
 
     tokenizer = Tokenizer.from_file(args.vocab_path)
     device, local_rank = setup_training(args)
