@@ -6,8 +6,11 @@ def preprocess(f):
     prev_line = None
     for line in f:
         line = line.strip()
+        if len(line) < 1:
+          continue
+        else:
+          line = line[0].upper() + line[1:]
 
-        line = line[0].upper() + line[1:]
         line = clean(line)
         line = f'"{line}"'
 
@@ -19,7 +22,7 @@ def preprocess(f):
 
 
 def process_data(dataset):
-    input_path = f"../data/babylm_data/babylm_100M/{dataset}/aochildes.{dataset}"
+    input_path = f"../data/babylm_data/babylm_100M/{dataset}/childes.{dataset}"
     output_path = f"../data/processed/{dataset}/aochildes_{dataset}.txt"
 
     with open(input_path) as f:
