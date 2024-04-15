@@ -27,7 +27,18 @@ def preprocess(f):
         prev_line = line
 
 
-with open("../data/babylm_data/babylm_100M/switchboard.train") as f:
-    with open("../data/processed/switchboard.txt", 'w') as g:
-        for line in preprocess(f):
-            g.write(f"{line}\n")
+def process_data(dataset):
+    input_path = f"../data/babylm_data/babylm_100M/{dataset}/switchboard.{dataset}"
+    output_path = f"../data/processed/{dataset}/switchboard_{dataset}.txt"
+
+    with open(input_path) as f:
+        with open(output_path, 'w') as g:
+            for line in preprocess(f):
+                g.write(f"{line}\n")
+
+
+if __name__ == "__main__":
+    datasets = ["train", "test", "dev"]
+
+    for dataset in datasets:
+        process_data(dataset)
