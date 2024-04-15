@@ -42,3 +42,9 @@ if __name__ == "__main__":
 
     for dataset in datasets:
         process_data(dataset)
+
+if __name__ == "__main__":
+    datasets = ["train", "test", "dev"]
+
+    for dataset in datasets:
+        process_data(dataset)
