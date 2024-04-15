@@ -27,7 +27,11 @@ def preprocess(f):
         accumulated_line.append(line)
 
 
-with open("../data/babylm_data/babylm_100M/gutenberg.train") as f:
-    with open("../data/processed/gutenberg.txt", 'w') as g:
-        for line in preprocess(f):
-            g.write(f"{line}\n")
+def process_data(dataset):
+    input_path = f"../data/babylm_data/babylm_100M/{dataset}/gutenberg.{dataset}"
+    output_path = f"../data/processed/{dataset}/gutenberg_{dataset}.txt"
+
+    with open(input_path) as f:
+        with open(output_path, 'w') as g:
+            for line in preprocess(f):
+                g.write(f"{line}\n")
