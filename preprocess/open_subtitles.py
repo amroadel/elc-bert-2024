@@ -37,3 +37,9 @@ def process_data(dataset):
         with open(output_path, 'w') as g:
             for line in preprocess(f):
                 g.write(f"{line}\n")
+
+if __name__ == "__main__":
+    datasets = ["train", "test", "dev"]
+
+    for dataset in datasets:
+        process_data(dataset)
