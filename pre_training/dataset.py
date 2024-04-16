@@ -37,7 +37,7 @@ class SpanMaskingStrategy:
             elif random_p < 1.0 - self.keep_p:
                 random_words = torch.randint(
                     low=self.n_special_tokens - 1,
-                    high=self.tokenizer.vocab_size(),
+                    high=self.tokenizer.vocab_size,
                     size=(sub_mask.sum(),),
                     dtype=torch.long
                 )
@@ -82,7 +82,7 @@ class Dataset(Dataset):
             # segment = segment.strip().split(" ")
             # assert len(segment) <= seq_length - 2, " ".join(segment)
             # segment = [self.tokenizer.token_to_id(token) for token in segment]
-            self.segments.append(outputs)
+            self.segments.append(outputs['input_ids'])
 
     def __len__(self):
         return len(self.segments)
