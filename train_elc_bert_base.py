@@ -14,6 +14,8 @@ from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel
 
 from tokenizers import Tokenizer
+from transformers import RobertaTokenizer, PreTrainedTokenizerFast
+
 from pre_training.lamb import Lamb
 from pre_training.config import BertConfig
 
@@ -404,7 +406,9 @@ if __name__ == "__main__":
         # args.wandb_id = wandb.util.generate_id() if int(os.environ["SLURM_PROCID"]) == 0 else 0
         args.wandb_id = 0
 
-    tokenizer = Tokenizer.from_file(args.vocab_path)
+    # tokenizer = Tokenizer.from_file(args.vocab_path)
+    tokenizer = RobertaTokenizer.from_pretrained("FacebookAI/roberta-base")
+    # tokenizer = PreTrainedTokenizerFast(tokenizer_file=args.vocab_path)
     device, local_rank = setup_training(args)
     model, config, optimizer, scheduler, grad_scaler = prepare_model_and_optimizer(args, device, local_rank, checkpoint)
     train_data, min_length = load_dataset(args, tokenizer, device)
