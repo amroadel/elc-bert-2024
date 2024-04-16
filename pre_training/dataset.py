@@ -11,7 +11,7 @@ class SpanMaskingStrategy:
         self.tokenizer = tokenizer
         self.n_special_tokens = n_special_tokens
         self.padding_label_id = padding_label_id
-        self.mask_index = self.tokenizer.token_to_id("[MASK]")
+        self.mask_index = self.tokenizer.convert_tokens_to_ids("[MASK]")
 
     def __call__(self, tokens):
         labels = torch.full_like(tokens, fill_value=self.padding_label_id)
@@ -37,7 +37,7 @@ class SpanMaskingStrategy:
             elif random_p < 1.0 - self.keep_p:
                 random_words = torch.randint(
                     low=self.n_special_tokens - 1,
-                    high=self.tokenizer.get_vocab_size(),
+                    high=self.tokenizer.vocab_size(),
                     size=(sub_mask.sum(),),
                     dtype=torch.long
                 )
@@ -63,20 +63,26 @@ class Dataset(Dataset):
 
         self.masking_strategy = SpanMaskingStrategy(mask_p, tokenizer, self.n_special_tokens, padding_label_id=-100, random_p=random_p, keep_p=keep_p)
 
-        self.mask_index = self.tokenizer.token_to_id("[MASK]")
-        self.cls_index = self.tokenizer.token_to_id("[CLS]")
-        self.sep_index = self.tokenizer.token_to_id("[SEP]")
-        self.pad_index = self.tokenizer.token_to_id("[PAD]")
+        self.mask_index = self.tokenizer.convert_tokens_to_ids("[MASK]")
+        self.cls_index = self.tokenizer.convert_tokens_to_ids("[CLS]")
+        self.sep_index = self.tokenizer.convert_tokens_to_ids("[SEP]")
+        self.pad_index = self.tokenizer.convert_tokens_to_ids("[PAD]")
 
         self.segments = []
         for i, segment in enumerate(open(file)):
             if i % n_gpus != offset:
                 continue
-
-            segment = segment.strip().split(" ")
-            assert len(segment) <= seq_length - 2, " ".join(segment)
-            segment = [self.tokenizer.token_to_id(token) for token in segment]
-            self.segments.append(segment)
+            outputs = tokenizer(
+                        segment,
+                        truncation=True,
+                        max_length=seq_length,
+                        return_overflowing_tokens=True,
+                        return_length=True)
+            
+            # segment = segment.strip().split(" ")
+            # assert len(segment) <= seq_length - 2, " ".join(segment)
+            # segment = [self.tokenizer.token_to_id(token) for token in segment]
+            self.segments.append(outputs)
 
     def __len__(self):
         return len(self.segments)
@@ -107,5 +113,5 @@ class Dataset(Dataset):
 
     def show_random_item(self):
         inputs, _, outputs = self.__getitem__(self.randint(0, len(self)))
-        print(' '.join(self.tokenizer.id_to_token(i) for i in inputs), flush=True)
-        print(' '.join(self.tokenizer.id_to_token(o) if o >= 0 else "-1" for o in outputs), flush=True)
+        print(' '.join(self.tokenizer.convert_ids_to_tokens(i) for i in inputs), flush=True)
+        print(' '.join(self.tokenizer.convert_ids_to_tokens(o) if o >= 0 else "-1" for o in outputs), flush=True)
